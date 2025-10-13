@@ -3,19 +3,15 @@ kind: Application
 metadata:
   name: fineract-platform
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
   finalizers:
   - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: brac-fineract
   
   source:
-    repoURL: https://github.com/your-username/your-repo.git  # Update with your repo
+    repoURL: https://github.com/0sifat/fineract.git
     targetRevision: HEAD
-    path: kubernetes
-    directory:
-      recurse: false
+    path: kubernetes  # Remove the leading slash okk 
   
   destination:
     server: https://kubernetes.default.svc
@@ -25,7 +21,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
     syncOptions:
     - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
@@ -36,16 +31,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-  
-  # Ignore replica count changes to allow HPA to work
-  ignoreDifferences:
-  - group: apps
-    kind: Deployment
-    jqPathExpressions:
-    - .spec.replicas
-  
-  info:
-  - name: description
-    value: Apache Fineract Core Banking Platform with Community App
-  - name: repo
-    value: https://github.com/your-username/your-repo
