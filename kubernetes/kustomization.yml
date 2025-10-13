@@ -4,18 +4,19 @@ kind: Kustomization
 namespace: fineract
 
 resources:
-- namespace.yml
+- namespace.yaml
+- fineract-secrets.yaml
 - fineractmysql-configmap.yml
 - fineractmysql-deployment.yml
 - fineract-server-deployment.yml
 - fineract-mifoscommunity-deployment.yml
 
-# Common labels for all resources
-commonLabels:
-  app.kubernetes.io/name: fineract
-  app.kubernetes.io/part-of: fineract-platform
-  app.kubernetes.io/managed-by: argocd
+# Use the new labels format (not commonLabels)
+labels:
+- pairs:
+    app.kubernetes.io/part-of: fineract-platform
+    app.kubernetes.io/managed-by: argocd
 
-# Add sync wave annotations for dependency ordering
-patchesStrategicMerge:
-- sync-waves-patch.yaml
+# Add sync wave annotations directly without patches
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "0"
