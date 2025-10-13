@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: fineract
 
 resources:
-- namespace.yaml
+- namespace.yml
 - fineractmysql-configmap.yml
 - fineractmysql-deployment.yml
 - fineract-server-deployment.yml
