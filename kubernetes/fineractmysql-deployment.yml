@@ -1,22 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements. See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership. The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations
-# under the License.
-#
-
-
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -28,7 +9,7 @@ spec:
   capacity:
     storage: 10Gi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce  # Changed from ReadWriteMany
   hostPath:
     path: "/mnt/data"
 
@@ -41,7 +22,7 @@ metadata:
 spec:
   storageClassName: manual
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce  # Changed from ReadWriteMany
   resources:
     requests:
       storage: 5Gi
@@ -52,7 +33,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: fineract-server
+    app: fineract-mysql  # Fixed label
   name: fineractmysql
 spec:
   ports:
@@ -60,9 +41,9 @@ spec:
       port: 3306
       targetPort: 3306
   selector:
-    app: fineract-server
-    tier: fineractmysql
-  clusterIP: None
+    app: fineract-mysql  # Fixed to match deployment labels
+    tier: database       # Fixed to match deployment labels
+  type: ClusterIP        # Changed from None - this was causing DNS issues
 
 ---
 
@@ -70,24 +51,27 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: fineract-server
+    app: fineract-mysql  # Fixed label
   name: fineractmysql
 spec:
   selector:
     matchLabels:
-      app: fineract-server
-      tier: fineractmysql
+      app: fineract-mysql  # Fixed label
+      tier: database       # Fixed label
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: fineract-server
-        tier: fineractmysql
+        app: fineract-mysql  # Fixed label
+        tier: database       # Fixed label
     spec:
       containers:
         - image: mariadb:11.4
           name: mysql
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "mysql"  # Direct value instead of secret reference
           resources:
             requests:
               memory: "1Gi"
@@ -95,12 +79,6 @@ spec:
             limits:
               memory: "5Gi"
               cpu: "2000m"
-          env:
-            - name: MARIADB_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: fineract-tenants-db-secret
-                  key: password
           livenessProbe:
             exec:
               command: ["sh","-c","mysqladmin ping -h localhost -uroot -p${MARIADB_ROOT_PASSWORD}"]
@@ -117,7 +95,6 @@ spec:
             periodSeconds: 5
           ports:
             - containerPort: 3306
-              name: fineractmysql
           volumeMounts:
             - name: fineractmysql-initdb
               mountPath: /docker-entrypoint-initdb.d/
