@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fineractmysql
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fineract-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mifos-community
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
