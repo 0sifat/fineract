@@ -22,7 +22,7 @@ metadata:
 type: Opaque
 stringData:
   username: root
-  password: rootpassword123   # <-- Change this
+  password: rootpassword123  # Change this
 
 ---
 # =========================================
@@ -43,7 +43,40 @@ data:
 
 ---
 # =========================================
-# 4. MariaDB Deployment + Service
+# 4. PersistentVolume + PVC for MariaDB
+# =========================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: fineractmysql-pv
+  namespace: fineract
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/mysql
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fineractmysql-pvc
+  namespace: fineract
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# =========================================
+# 5. MariaDB Service + Deployment
 # =========================================
 apiVersion: v1
 kind: Service
@@ -55,7 +88,6 @@ metadata:
 spec:
   selector:
     app: fineractmysql
-    tier: backend
   ports:
     - port: 3306
       targetPort: 3306
@@ -70,7 +102,6 @@ metadata:
   namespace: fineract
   labels:
     app: fineractmysql
-    tier: backend
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -78,12 +109,10 @@ spec:
   selector:
     matchLabels:
       app: fineractmysql
-      tier: backend
   template:
     metadata:
       labels:
         app: fineractmysql
-        tier: backend
     spec:
       containers:
         - name: mysql
@@ -107,11 +136,11 @@ spec:
             name: fineractmysql-initdb
         - name: mysql-data
           persistentVolumeClaim:
-            claimName: fineractmysql-pv-claim
+            claimName: fineractmysql-pvc
 
 ---
 # =========================================
-# 5. Fineract Server Deployment + Service
+# 6. Fineract Server Service + Deployment
 # =========================================
 apiVersion: v1
 kind: Service
@@ -123,7 +152,6 @@ metadata:
 spec:
   selector:
     app: fineract-server
-    tier: backend
   ports:
     - port: 8443
       targetPort: 8443
@@ -139,7 +167,6 @@ metadata:
   namespace: fineract
   labels:
     app: fineract-server
-    tier: backend
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -147,26 +174,24 @@ spec:
   selector:
     matchLabels:
       app: fineract-server
-      tier: backend
   template:
     metadata:
       labels:
         app: fineract-server
-        tier: backend
     spec:
       initContainers:
         - name: wait-for-mysql
           image: busybox:1.28
           command:
-            - 'sh'
-            - '-c'
+            - sh
+            - -c
             - |
               echo "Waiting for MariaDB..."
               until nc -z fineractmysql.fineract.svc.cluster.local 3306; do
-                echo "MariaDB not ready yet..."
+                echo "MariaDB not ready..."
                 sleep 2
               done
-              echo "MariaDB is ready!"
+              echo "MariaDB ready!"
       containers:
         - name: fineract-server
           image: apache/fineract:latest
@@ -189,7 +214,7 @@ spec:
 
 ---
 # =========================================
-# 6. Mifos Community Deployment + Service
+# 7. Mifos Community Service + Deployment
 # =========================================
 apiVersion: v1
 kind: Service
@@ -201,7 +226,6 @@ metadata:
 spec:
   selector:
     app: mifos-community
-    tier: frontend
   ports:
     - port: 9090
       targetPort: 80
@@ -216,7 +240,6 @@ metadata:
   namespace: fineract
   labels:
     app: mifos-community
-    tier: frontend
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -224,12 +247,10 @@ spec:
   selector:
     matchLabels:
       app: mifos-community
-      tier: frontend
   template:
     metadata:
       labels:
         app: mifos-community
-        tier: frontend
     spec:
       initContainers:
         - name: wait-for-fineract
@@ -240,13 +261,12 @@ spec:
             - |
               echo "Waiting for Fineract Server..."
               until nc -z fineract-server.fineract.svc.cluster.local 8443; do
-                echo "Fineract Server not ready..."
+                echo "Fineract not ready..."
                 sleep 2
               done
-              echo "Fineract Server is ready!"
+              echo "Fineract ready!"
       containers:
         - name: mifos-community
           image: openmf/community-app:latest
           ports:
             - containerPort: 80
-
