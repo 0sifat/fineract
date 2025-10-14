@@ -5,7 +5,7 @@ namespace: fineract
 
 resources:
 - namespace.yml
-- fineract-secrets.yaml
+- fineract-secrets.yml
 - fineractmysql-configmap.yml
 - fineractmysql-deployment.yml
 - fineract-server-deployment.yml
