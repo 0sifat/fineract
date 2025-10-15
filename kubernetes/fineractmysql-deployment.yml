@@ -1,100 +1,45 @@
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: fineractmysql-pv-volume
-  labels:
-    type: local
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce  # Changed from ReadWriteMany
-  hostPath:
-    path: "/mnt/data"
-
----
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: fineractmysql-pv-claim
-spec:
-  storageClassName: manual
-  accessModes:
-    - ReadWriteOnce  # Changed from ReadWriteMany
-  resources:
-    requests:
-      storage: 5Gi
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: fineract-mysql  # Fixed label
-  name: fineractmysql
-spec:
-  ports:
-    - protocol: TCP
-      port: 3306
-      targetPort: 3306
-  selector:
-    app: fineract-mysql  # Fixed to match deployment labels
-    tier: database       # Fixed to match deployment labels
-  type: ClusterIP        # Changed from None - this was causing DNS issues
-
----
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: fineract-mysql  # Fixed label
   name: fineractmysql
+  labels:
+    app: fineract-mysql
 spec:
   selector:
     matchLabels:
-      app: fineract-mysql  # Fixed label
-      tier: database       # Fixed label
+      app: fineract-mysql
+      tier: database
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: fineract-mysql  # Fixed label
-        tier: database       # Fixed label
+        app: fineract-mysql
+        tier: database
     spec:
       containers:
-        - image: mariadb:11.4
-          name: mysql
+        - name: mysql
+          image: mariadb:11.4
           env:
             - name: MARIADB_ROOT_PASSWORD
-              value: "mysql"  # Direct value instead of secret reference
-          resources:
-            requests:
-              memory: "1Gi"
-              cpu: "1000m"
-            limits:
-              memory: "5Gi"
-              cpu: "2000m"
-          livenessProbe:
-            exec:
-              command: ["sh","-c","mysqladmin ping -h localhost -uroot -p${MARIADB_ROOT_PASSWORD}"]
-            failureThreshold: 10
-            timeoutSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - mysqladmin ping -uroot -p${MARIADB_ROOT_PASSWORD}
-            failureThreshold: 10
-            initialDelaySeconds: 5
-            periodSeconds: 5
+              value: "mysql"
           ports:
             - containerPort: 3306
+          # ✅ FIXED PROBES (use tcpSocket instead of exec)
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
           volumeMounts:
             - name: fineractmysql-initdb
               mountPath: /docker-entrypoint-initdb.d/
