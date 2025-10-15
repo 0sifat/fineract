@@ -26,7 +26,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  replicas: 1  # Start with 1 for debugging
+  replicas: 1
   selector:
     matchLabels:
       app: fineract-server
@@ -47,7 +47,7 @@ spec:
             - '-c'
             - |
               echo "Testing connection to fineractmysql:3306"
-              until nc -z fineractmysql 3306; do  # Fixed: simple service name
+              until nc -z fineractmysql 3306; do
                 echo "Waiting for MySQL server..."
                 sleep 5
               done
@@ -57,14 +57,28 @@ spec:
         - name: fineract-server
           image: apache/fineract:latest
           env:
+            - name: FINERACT_SERVER_PORT
+              value: "8443"
+            - name: FINERACT_SERVER_SSL_ENABLED
+              value: "true"
             - name: FINERACT_HIKARI_JDBC_URL
-              value: "jdbc:mariadb://fineractmysql:3306/fineract_tenants?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"  # Fixed: simple service name
+              value: "jdbc:mariadb://fineractmysql:3306/fineract_tenants?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
             - name: FINERACT_HIKARI_USERNAME
-              value: "root"  # Direct value for testing
+              value: "root"
             - name: FINERACT_HIKARI_PASSWORD
-              value: "mysql"  # Direct value for testing
+              value: "mysql"
             - name: FINERACT_HIKARI_DRIVER_CLASS_NAME
               value: org.mariadb.jdbc.Driver
+            - name: FINERACT_DEFAULT_TENANTDB_HOSTNAME
+              value: "fineractmysql"
+            - name: FINERACT_DEFAULT_TENANTDB_PORT
+              value: "3306"
+            - name: FINERACT_DEFAULT_TENANTDB_UID
+              value: "root"
+            - name: FINERACT_DEFAULT_TENANTDB_PWD
+              value: "mysql"
+            - name: FINERACT_DEFAULT_TENANTDB_CONN_PARAMS
+              value: "useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
             - name: JAVA_TOOL_OPTIONS
               value: "-Xmx1G -Xms512m -Djava.security.egd=file:/dev/./urandom"
           resources:
@@ -81,6 +95,8 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 180
             periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /fineract-provider/actuator/health
@@ -88,5 +104,7 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 120
             periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           ports:
             - containerPort: 8443
